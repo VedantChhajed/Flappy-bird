@@ -65,6 +65,16 @@ class Game {
         this.startScreen = document.getElementById('start-screen');
         this.startButton = document.getElementById('start-button');
 
+        // Initialize audio context safely
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            this.sounds = {};
+        } catch (e) {
+            console.warn('Audio context not supported');
+            this.audioContext = null;
+            this.sounds = null;
+        }
+
         this.bird = {
             x: this.canvas.width * 0.25,
             y: this.canvas.height * 0.5,
@@ -256,26 +266,12 @@ class Game {
             const pipe = this.pipes[i];
             pipe.x -= 2;
 
-            // Improved collision detection
-            if (!this.gameOver) {
-                const birdBox = {
-                    left: this.bird.x - 15,
-                    right: this.bird.x + 15,
-                    top: this.bird.y - 15,
-                    bottom: this.bird.y + 15
-                };
-
-                const pipeBox = {
-                    left: pipe.x,
-                    right: pipe.x + 50,
-                    topBottom: pipe.height,
-                    bottomTop: pipe.height + 150
-                };
-
-                if (birdBox.right > pipeBox.left && birdBox.left < pipeBox.right) {
-                    if (birdBox.top < pipeBox.topBottom || birdBox.bottom > pipeBox.bottomTop) {
-                        this.gameOver = true;
-                        this.createExplosion();
+            // Optimized collision detection
+            if (!this.gameOver && this.bird.x + 15 > pipe.x && this.bird.x - 15 < pipe.x + 50) {
+                if (this.bird.y - 15 < pipe.height || this.bird.y + 15 > pipe.height + 150) {
+                    this.gameOver = true;
+                    this.createExplosion();
+                    if (this.animationFrame) {
                         cancelAnimationFrame(this.animationFrame);
                     }
                 }
@@ -285,15 +281,6 @@ class Game {
             if (!pipe.passed && pipe.x + 50 < this.bird.x) {
                 this.score++;
                 pipe.passed = true;
-                
-                // Play score sound
-                if (this.sounds.score) {
-                    const scoreSound = this.audioContext.createBufferSource();
-                    scoreSound.buffer = this.sounds.score;
-                    scoreSound.connect(this.audioContext.destination);
-                    scoreSound.start();
-                }
-
                 if (this.score > this.highScore) {
                     this.highScore = this.score;
                     localStorage.setItem('highScore', this.highScore);
